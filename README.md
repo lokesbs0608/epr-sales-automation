@@ -58,3 +58,13 @@ Upload:
 ```
 node run_upload.js --config config_upload.json
 ```
+
+PIBO Data Entry (fill form + generate EPR Invoice Number):
+```
+node pibo_data.js --config config_pibo.json
+```
+
+PIBO Invoice Upload (upload PDF for each EPR entry):
+```
+node pibo_upload.js --config config_pibo_upload.json
+```

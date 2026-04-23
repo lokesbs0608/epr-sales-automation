@@ -657,9 +657,9 @@ async function clickSubmitAndConfirm(page) {
 async function submitAndCaptureResult(page) {
     await clickSubmitAndConfirm(page);
 
-    // Wait for toast (success or error)
-    await page.waitForTimeout(1000);
-    const toastText = await readToastTextWithRetry(page, 10, 500);
+    // Wait for toast (success or error) — quick check, don't wait long
+    await page.waitForTimeout(500);
+    const toastText = await readToastTextWithRetry(page, 3, 300);
     logStep(`toast: ${toastText || "(none)"}`, 1);
 
     // Try to extract EPR number from toast
@@ -690,7 +690,7 @@ async function submitAndCaptureResult(page) {
     // Fallback: poll for EPR input to appear
     if (!eprInvoice) {
         const start = Date.now();
-        while (Date.now() - start < 15000) {
+        while (Date.now() - start < 5000) {
             // Check all visible inputs for a numeric value that looks like an EPR number
             const inputs = page.locator('input[readonly], input[disabled]');
             const count = await inputs.count();
@@ -722,7 +722,7 @@ async function closeAllModals(page) {
         if (page.isClosed()) return;
         logStep("refresh page to close modals", 2);
         await page.reload({ waitUntil: "domcontentloaded" }).catch(() => { });
-        await page.waitForTimeout(3000).catch(() => { });
+        await page.waitForTimeout(1500).catch(() => { });
         await waitForLoaderToFinish(page).catch(() => { });
         await page.evaluate(() => {
             document.querySelectorAll(".modal-backdrop, .modal.show").forEach(el => el.remove());
@@ -881,7 +881,7 @@ async function resetToFreshPage(page) {
 
             // Open form modal
             await clickAddNew(page);
-            await page.waitForTimeout(2000);
+            await page.waitForTimeout(1000);
             await waitForLoaderToFinish(page);
             // Wait for Registration Type dropdown to be fully visible and stable
             const regSelect = page.locator('ng-select[name="registration_type"]').first();
@@ -1027,13 +1027,17 @@ async function resetToFreshPage(page) {
                 message: msg,
             });
         } finally {
-            if (page.isClosed()) {
-                console.log("Page closed. Stopping.");
+            try {
+                if (page.isClosed()) {
+                    console.log("Page closed. Stopping.");
+                    break;
+                }
+                if (!pageRefreshed) {
+                    await closeAllModals(page);
+                }
+            } catch {
+                console.log("Page closed during cleanup. Stopping.");
                 break;
-            }
-            // Refresh page to ensure clean state for next row (only if not already refreshed)
-            if (!pageRefreshed) {
-                await closeAllModals(page);
             }
         }
     }

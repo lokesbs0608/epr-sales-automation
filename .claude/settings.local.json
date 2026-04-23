@@ -3,7 +3,11 @@
     "allow": [
       "Bash(node -e \":*)",
       "Bash(node -c pibo_data.js)",
-      "Bash(ls C:/Users/Lenovo/epr-sales-automation/*.xlsx)"
+      "Bash(ls C:/Users/Lenovo/epr-sales-automation/*.xlsx)",
+      "Bash(ls:*)",
+      "Bash(ssh -vT git@github-yutitech)",
+      "Bash(node -c pibo_upload.js)",
+      "Bash(node -e ' *)"
     ]
   }
 }

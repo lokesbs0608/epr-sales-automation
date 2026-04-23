@@ -1,0 +1,8 @@
+{
+  "inputExcel": "AEGIOS - UFLEX SALES 25-26_output.xlsx",
+  "sheetName": "Sheet1",
+  "outputExcel": "AEGIOS - UFLEX SALES 25-26_upload_output.xlsx",
+  "max_rows": 0,
+  "storageState": "storageState_pibo.json",
+  "invoicePdfDir": "C:\\Users\\Lenovo\\Downloads\\ageios\\INVOICES"
+}

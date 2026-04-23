@@ -1,0 +1,545 @@
+datetime,row,invoice_no,epr_invoice_number,status,message
+2026-04-23T12:41:56.650Z,2,AF130252601336,9419115705,Failed,"locator.waitFor: Target page, context or browser has been closed
+Call log:
+[2m  - waiting for locator('input[type=""text""].form-control.w-60, input[type=""text""][checkregex]').last() to be visible[22m
+"
+2026-04-23T12:47:03.519Z,2,AF130252601336,202604238175587,Failed,"locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('input[type=""text""].form-control.w-60, input[type=""text""][checkregex]').last() to be visible[22m
+[2m    62 × locator resolved to hidden <input type=""text"" checkregex="""" kluserinputvalidator="""" _ngcontent-ng-c1973799827="""" placeholder=""Search GST E-Invoice No"" class=""form-control border ng-untouched ng-pristine ng-valid""/>[22m
+"
+2026-04-23T12:47:34.211Z,3,AF130252601730,202604238175657,Failed,"locator.waitFor: Timeout 30000ms exceeded.
+Call log:
+[2m  - waiting for locator('input[type=""text""].form-control.w-60, input[type=""text""][checkregex]').last() to be visible[22m
+[2m    61 × locator resolved to hidden <input type=""text"" checkregex="""" kluserinputvalidator="""" _ngcontent-ng-c1973799827="""" placeholder=""Search GST E-Invoice No"" class=""form-control border ng-untouched ng-pristine ng-valid""/>[22m
+"
+2026-04-23T12:47:56.888Z,4,AF130252601785,202604238175704,Failed,"locator.waitFor: Target page, context or browser has been closed
+Call log:
+[2m  - waiting for locator('input[type=""text""].form-control.w-60, input[type=""text""][checkregex]').last() to be visible[22m
+[2m    47 × locator resolved to hidden <input type=""text"" checkregex="""" kluserinputvalidator="""" _ngcontent-ng-c1973799827="""" placeholder=""Search GST E-Invoice No"" class=""form-control border ng-untouched ng-pristine ng-valid""/>[22m
+"
+2026-04-23T12:51:18.860Z,2,AF130252601336,202604238175587,Failed,"locator.waitFor: Timeout 20000ms exceeded.
+Call log:
+[2m  - waiting for locator('#ScrollableSimpleTableBody tr').filter({ hasText: '202604238175587' }).first() to be visible[22m
+"
+2026-04-23T12:51:22.835Z,3,AF130252601730,202604238175657,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:51:26.806Z,4,AF130252601785,202604238175704,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:51:30.541Z,5,AF130252601798,202604238175727,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:51:34.289Z,6,AF130252601906,202604238175728,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:51:38.016Z,7,AF130252601940,202604238175733,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:51:41.741Z,8,AF130252601981,202604238175740,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:51:45.470Z,9,AF130252602029,202604238175741,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:51:49.345Z,10,AF130252602030,202604238175744,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:51:53.117Z,11,AF130252602081,202604238175760,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:51:54.651Z,12,AF130252602148,202604238175770,Failed,"page.waitForTimeout: Target page, context or browser has been closed"
+2026-04-23T12:51:54.867Z,13,AF130252602161,202604238175777,Failed,"locator.waitFor: Target page, context or browser has been closed"
+2026-04-23T12:54:28.955Z,2,AF130252601336,202604238175587,Failed,"locator.waitFor: Timeout 20000ms exceeded.
+Call log:
+[2m  - waiting for locator('#ScrollableSimpleTableBody tr').filter({ hasText: '202604238175587' }).first() to be visible[22m
+"
+2026-04-23T12:54:32.992Z,12,AF130252602148,202604238175770,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:54:36.808Z,13,AF130252602161,202604238175777,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:54:40.916Z,14,AF130252602184,202604238175780,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:54:44.977Z,15,AF130252602434,202604238175786,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:54:48.901Z,16,AF130252602531,202604238175898,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:54:52.843Z,17,AF130252602555,202604238175903,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:54:56.855Z,18,AF130252602579,202604238175910,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:55:00.833Z,19,AF130252602645,202604238175912,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:55:05.018Z,20,AF130252602681,202604238175919,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:55:09.037Z,21,AF130252602705,202604238175928,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:55:13.073Z,22,AF130252602724,202604238175934,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:55:16.879Z,23,AF130252602831,202604238175940,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:55:20.772Z,24,AF130252602842,202604238175943,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:55:25.311Z,25,AF130252602855,202604238175949,success,"×
+Success
+data fetch success"
+2026-04-23T12:55:29.125Z,26,AF130252602984,202604238175955,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:55:33.766Z,27,AF130252603005,202604238175961,success,"×
+Success
+data fetch success"
+2026-04-23T12:55:37.635Z,28,AF130252603037,202604238175966,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:55:41.481Z,29,AF130252603049,202604238175969,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:55:45.350Z,30,AF130252603088,202604238175976,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:55:49.245Z,31,AF130252603099,202604238175983,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:55:53.479Z,32,AF130252603129,202604238175989,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:55:57.413Z,33,AF130252603214,202604238175994,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:56:01.295Z,34,AF130252603243,202604238175997,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:56:05.057Z,35,AF130252603251,202604238176001,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:56:08.991Z,36,AF130252603300,202604238176008,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:56:12.823Z,37,AF130252603361,202604238176011,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:56:16.757Z,38,AF130252603380,202604238176016,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:56:20.788Z,39,AF130252603445,202604238176021,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:56:28.351Z,40,AF130252603470,202604238176025,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:56:32.431Z,41,AF130252603501,202604238176031,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:56:36.305Z,42,AF130252603505,202604238176035,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:56:40.079Z,43,AF130252603513,202604238176038,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:56:43.916Z,44,AF130252603544,202604238176042,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:56:47.785Z,45,AF130252603570,202604238176048,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:56:51.821Z,46,AF130252603602,202604238176054,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:57:28.739Z,47,AF130252603633,202604238176060,Failed,"locator.click: Element is not visible
+Call log:
+[2m  - waiting for locator('.modal-dialog:has-text(""Upload Invoice"")').first().locator('button.btn.btn-primary').filter({ hasText: 'Upload' }).first()[22m
+[2m    - locator resolved to <button _ngcontent-ng-c4266263745="""" class=""btn btn-primary float-end m-3"">Upload Invoice</button>[22m
+[2m  - attempting click action[22m
+[2m    - scrolling into view if needed[22m
+"
+2026-04-23T12:57:32.715Z,48,AF130252603646,202604238176066,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:57:36.790Z,49,AF130252603689,202604238176069,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:57:40.914Z,50,AF130252603722,202604238176072,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:57:44.930Z,51,AF130252603749,202604238176075,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:57:48.821Z,52,AF130252603755,202604238176080,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:57:52.668Z,53,AF130252603757,202604238176083,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:57:56.672Z,54,AF130252603759,202604238176087,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:57:59.095Z,55,AF130252600989,202604238176092,Failed,PDF not found for invoice last4: 0989
+2026-04-23T12:58:20.983Z,56,AF130252601249,202604238176096,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:58:24.868Z,57,AF130252601296,202604238176099,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:58:28.933Z,58,AF130252601308,202604238176103,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:58:32.874Z,59,AF130252601311,202604238176107,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:58:36.949Z,60,AF130252601315,202604238176111,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:58:40.932Z,61,AF130252601482,202604238176116,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:58:44.823Z,62,AF130252601504,202604238176122,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:58:48.709Z,63,AF130252601534,202604238176126,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:58:52.619Z,64,AF130252601603,202604238176130,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:58:56.499Z,65,AF130252601627,202604238176135,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:59:00.452Z,66,AF130252601672,202604238176141,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:59:04.318Z,67,AF130252601673,202604238176146,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:59:08.299Z,68,AF130252601673,202604238176150,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:59:12.196Z,69,AF130252601776,202604238176153,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:59:16.152Z,70,AF130252601790,202604238176158,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:59:20.091Z,71,AF130252601792,202604238176162,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:59:23.971Z,72,AF130252601870,202604238176168,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:59:27.798Z,73,AF130252601957,202604238176173,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:59:31.652Z,74,AF130252601957,202604238176176,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:59:35.590Z,75,AF130252602079,202604238176179,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:59:39.439Z,76,AF130252602101,202604238176184,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T12:59:43.284Z,77,AF130252602116,202604238176186,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:59:47.357Z,78,AF130252602128,202604238176191,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:59:51.183Z,79,AF130252602252,202604238176196,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T12:59:58.128Z,80,AF130252602296,202604238176198,success,"×
+Success
+Invoice receipt updated successfully"
+2026-04-23T13:00:01.996Z,81,AF130252602297,202604238176203,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T13:00:05.980Z,82,AF130252602343,202604238176206,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T13:00:09.823Z,84,AF130252602425,202604238176319,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T13:00:13.825Z,85,AF130252602594,202604238176219,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T13:00:17.724Z,86,AF130252602600,202604238176222,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T13:00:21.589Z,87,AF130252602640,202604238176225,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"
+2026-04-23T13:00:25.465Z,88,AF130252602654,202604238176228,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T13:00:29.343Z,89,AF130252602763,202604238176232,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T13:00:33.209Z,90,AF130252602773,202604238176236,success,"×
+Success
+data fetch success
+×
+Success
+Invoice receipt updated successfully"
+2026-04-23T13:00:37.209Z,91,AF130252602775,202604238176239,success,"×
+Success
+Invoice receipt updated successfully
+×
+Success
+data fetch success"

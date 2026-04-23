@@ -713,29 +713,27 @@ async function submitAndCaptureResult(page) {
     // Determine success: EPR captured = success, OR toast says success
     const isSuccess = !!eprInvoice || (/success/i.test(toastText) && !/error/i.test(toastText));
 
-    // Refresh the page to close all modals cleanly
-    await closeAllModals(page);
-
+    // DON'T refresh here — let the caller save Excel first, then refresh
     return { eprInvoice, toastText, isSuccess };
 }
 
 async function closeAllModals(page) {
-    logStep("refresh page to close modals", 2);
-    // Force full page reload (page.goto same hash URL doesn't always reload in Angular)
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.waitForTimeout(3000);
-    await waitForLoaderToFinish(page);
-    // Remove any leftover modal backdrop via JS
-    await page.evaluate(() => {
-        document.querySelectorAll(".modal-backdrop, .modal.show").forEach(el => el.remove());
-        document.body.classList.remove("modal-open");
-        document.body.style.removeProperty("overflow");
-        document.body.style.removeProperty("padding-right");
-    }).catch(() => { });
-    // Wait for the page table to be ready
-    await page.waitForSelector("button", { timeout: 10000 }).catch(() => { });
-    await waitForLoaderToFinish(page);
-    logStep("page refreshed, ready for next row", 2);
+    try {
+        if (page.isClosed()) return;
+        logStep("refresh page to close modals", 2);
+        await page.reload({ waitUntil: "domcontentloaded" }).catch(() => { });
+        await page.waitForTimeout(3000).catch(() => { });
+        await waitForLoaderToFinish(page).catch(() => { });
+        await page.evaluate(() => {
+            document.querySelectorAll(".modal-backdrop, .modal.show").forEach(el => el.remove());
+            document.body.classList.remove("modal-open");
+            document.body.style.removeProperty("overflow");
+            document.body.style.removeProperty("padding-right");
+        }).catch(() => { });
+        await page.waitForSelector("button", { timeout: 10000 }).catch(() => { });
+        await waitForLoaderToFinish(page).catch(() => { });
+        logStep("page refreshed, ready for next row", 2);
+    } catch { }
 }
 
 // ── Navigation / reset ───────────────────────────────────────────────────────
@@ -974,10 +972,10 @@ async function resetToFreshPage(page) {
             logStep("fill Recycled Plastic %", 1);
             await fillByName(page, "recycled_plastic", recycledContent);
 
-            // Submit, confirm, read toast + EPR number, refresh page
+            // Submit, confirm, read toast + EPR number
             const result = await submitAndCaptureResult(page);
-            pageRefreshed = true;
 
+            // SAVE TO EXCEL IMMEDIATELY (before page refresh which might crash)
             if (result.isSuccess && result.eprInvoice) {
                 if (eprSet.has(result.eprInvoice)) {
                     throw new Error("Duplicate EPR Invoice Number: " + result.eprInvoice);
@@ -985,46 +983,34 @@ async function resetToFreshPage(page) {
                 setVal(row, headerMap, "Status", "Filled");
                 setVal(row, headerMap, "EPR Invoice Number", result.eprInvoice);
                 eprSet.add(result.eprInvoice);
-                appendLogRow(row, headerMap, {
-                    status: "Filled",
-                    eprInvoiceNumber: result.eprInvoice,
-                    message: result.toastText,
-                });
-                appendFilledRow(row, headerMap, headerList, {
-                    message: result.toastText,
-                });
                 console.log(`Row ${r}: Filled (EPR: ${result.eprInvoice})`);
                 successThisRow = true;
             } else if (result.isSuccess && !result.eprInvoice) {
                 setVal(row, headerMap, "Status", "Success but EPR not captured");
-                appendLogRow(row, headerMap, {
-                    status: "Success but EPR not captured",
-                    eprInvoiceNumber: "",
-                    message: result.toastText,
-                });
-                appendFilledRow(row, headerMap, headerList, {
-                    message: result.toastText,
-                });
                 console.log(`Row ${r}: Success but EPR number not captured`);
                 successThisRow = true;
             } else {
-                // Error toast
                 const errMsg = result.toastText || "Unknown error";
                 setVal(row, headerMap, "Status", "Failed: " + errMsg);
-                appendLogRow(row, headerMap, {
-                    status: "Failed",
-                    eprInvoiceNumber: result.eprInvoice || "",
-                    message: errMsg,
-                });
-                appendFilledRow(row, headerMap, headerList, {
-                    message: errMsg,
-                });
                 console.log(`Row ${r}: Failed -> ${errMsg}`);
             }
 
+            // Save Excel + logs BEFORE refreshing page
             row.commit();
             await safeWriteWorkbook(wb);
             await syncInputWorkbook(wb);
+            appendLogRow(row, headerMap, {
+                status: successThisRow ? "Filled" : "Failed",
+                eprInvoiceNumber: result.eprInvoice || "",
+                message: result.toastText || "",
+            });
+            appendFilledRow(row, headerMap, headerList, {
+                message: result.toastText || "",
+            });
+
+            // NOW refresh the page (safe to crash here, Excel is already saved)
+            pageRefreshed = true;
+            await closeAllModals(page);
         } catch (e) {
             const msg = String(e?.message || e);
             console.log(`Row ${r}: Failed ->`, msg);

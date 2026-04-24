@@ -10,7 +10,20 @@
       "Bash(node -e ' *)",
       "Bash(node --check run_registered.js)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(ssh -T git@github.com)",
+      "Bash(ssh -vT git@github.com)",
+      "Bash(gh auth *)",
+      "Bash(git config *)",
+      "Bash(ssh -T git@github-yutitech)",
+      "Bash(ssh-add *)",
+      "Bash(ssh-keygen -l -f ~/.ssh/id_ed25519_yutitech)",
+      "Bash(ssh-keygen -l -f ~/.ssh/id_ed25519)",
+      "Bash(git log *)",
+      "Bash(powershell.exe *)",
+      "Bash(ssh -V)",
+      "Bash(ssh-keygen -y -f ~/.ssh/id_ed25519_yutitech -P \"\")",
+      "Bash(git commit *)"
     ]
   }
 }

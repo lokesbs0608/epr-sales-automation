@@ -7,7 +7,10 @@
       "Bash(ls:*)",
       "Bash(ssh -vT git@github-yutitech)",
       "Bash(node -c pibo_upload.js)",
-      "Bash(node -e ' *)"
+      "Bash(node -e ' *)",
+      "Bash(node --check run_registered.js)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }

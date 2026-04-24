@@ -250,3 +250,11 @@ Call log:
 [2m    43 × locator resolved to hidden <div _ngcontent-ng-c1973799827="""" class=""form-group ng-star-inserted"">…</div>[22m
 "
 Registered,PRODUCER,UFLEX LIMITED,01AAACF0109J3ZC,JAMMU AND KASHMIR,CAT 2,PET,AF130252602425,30,4441008700000569,PUNB0444100,0.53939,11747.92,,202604238176319,Filled,2026-04-23T12:21:25.548Z,
+Registered,PRODUCER,UFLEX LIMITED,01AAACF0109J3ZC,JAMMU AND KASHMIR,CAT 2,PET,AF130252602421,30,4441008700000569,PUNB0444100,6.25559,129490.72,,,"Failed: locator.waitFor: Timeout 20000ms exceeded.
+Call log:
+[2m  - waiting for locator('.form-group').filter({ has: locator('label').filter({ hasText: 'Registration Type' }) }).first() to be visible[22m
+[2m    44 × locator resolved to hidden <div _ngcontent-ng-c1973799827="""" class=""form-group ng-star-inserted"">…</div>[22m",,2026-04-23T13:15:37.255Z,"locator.waitFor: Timeout 20000ms exceeded.
+Call log:
+[2m  - waiting for locator('.form-group').filter({ has: locator('label').filter({ hasText: 'Registration Type' }) }).first() to be visible[22m
+[2m    44 × locator resolved to hidden <div _ngcontent-ng-c1973799827="""" class=""form-group ng-star-inserted"">…</div>[22m
+"

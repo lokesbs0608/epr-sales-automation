@@ -29,7 +29,8 @@
       "Bash(GIT_SSH_COMMAND=\"ssh -o BatchMode=yes\" git ls-remote git@github.com:lokeshbs0608/epr-sales-automation.git HEAD)",
       "Bash(GIT_SSH_COMMAND=\"ssh -o BatchMode=yes\" git ls-remote git@github.com:lokeshbs0608/EPR-automation.git HEAD)",
       "Bash(git remote *)",
-      "Bash(node *)"
+      "Bash(node *)",
+      "Bash(git push *)"
     ]
   }
 }

@@ -23,7 +23,13 @@
       "Bash(powershell.exe *)",
       "Bash(ssh -V)",
       "Bash(ssh-keygen -y -f ~/.ssh/id_ed25519_yutitech -P \"\")",
-      "Bash(git commit *)"
+      "Bash(git commit *)",
+      "Bash(ssh-keygen -y -f ~/.ssh/id_ed25519 -P \"\")",
+      "Bash(GIT_SSH_COMMAND=\"ssh -o BatchMode=yes\" git ls-remote git@github.com:lokesbs0608/epr-sales-automation.git HEAD)",
+      "Bash(GIT_SSH_COMMAND=\"ssh -o BatchMode=yes\" git ls-remote git@github.com:lokeshbs0608/epr-sales-automation.git HEAD)",
+      "Bash(GIT_SSH_COMMAND=\"ssh -o BatchMode=yes\" git ls-remote git@github.com:lokeshbs0608/EPR-automation.git HEAD)",
+      "Bash(git remote *)",
+      "Bash(node *)"
     ]
   }
 }

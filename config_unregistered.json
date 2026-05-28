@@ -1,7 +1,7 @@
 {
-  "inputExcel": "CHIRPAL UNREGISTERD PWP Sale For Automation PP.xlsx",
+  "inputExcel": "Toppan_PWP_PP_Granules_updated_upload_output_v2.xlsx",
   "sheetName": "Main Sheet",
-  "outputExcel": "CHIRPAL UNREGISTERD PWP Sale For Automation PP_unregistered_output.xlsx",
+  "outputExcel": "Toppan_PWP_PP_Granules_updated_upload_output_v2_unregistered_output.xlsx",
   "max_rows": 0,
   "storageState": "storageState_unregistered.json",
   "plasticType": "PP"

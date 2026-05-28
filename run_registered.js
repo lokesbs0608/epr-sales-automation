@@ -668,139 +668,6 @@ async function waitEntityAutofill(page) {
         .catch(() => { });
 }
 
-async function getNgSelectValue(page, labelText) {
-    const group = page
-        .locator(".form-group", { has: page.locator("label", { hasText: labelText }) })
-        .first();
-    if (!(await group.count())) return "";
-    const selected = group.locator(".ng-value-label, .ng-value").first();
-    if (!(await selected.count())) return "";
-    return (await selected.innerText().catch(() => "")).trim();
-}
-
-async function getStateValueOnForm(page) {
-    const ngVal = await getNgSelectValue(page, "State");
-    if (ngVal) return ngVal;
-    const selectors = [
-        'input[formcontrolname="state"]',
-        'input[name="state"]',
-        '#state',
-        '#sellerState',
-        '#entity_state',
-    ];
-    for (const sel of selectors) {
-        const loc = page.locator(sel).first();
-        if (await loc.count()) {
-            const v = (await loc.inputValue().catch(() => "")).trim();
-            if (v) return v;
-        }
-    }
-    return "";
-}
-
-async function getSellerGstOnForm(page) {
-    const selectors = [
-        '#sellerGst',
-        'input[name="sellerGst"]',
-        'input[formcontrolname="sellerGst"]',
-        'input[formcontrolname="seller_gst"]',
-        'input[name="gst_no"]',
-    ];
-    for (const sel of selectors) {
-        const loc = page.locator(sel).first();
-        if (await loc.count()) {
-            const v = (await loc.inputValue().catch(() => "")).trim();
-            if (v) return v;
-        }
-    }
-    return "";
-}
-
-let lastMatchedEntityIndex = -1;
-
-async function pickEntityWithStateMatch(page, entityNameValue, expectedState, expectedGst) {
-    const name = cellText(entityNameValue);
-    const expState = cellText(expectedState).toLowerCase();
-    const expGst = cellText(expectedGst).toLowerCase();
-    if (!name) throw new Error("Entity name empty");
-
-    const group = page
-        .locator(".form-group", { has: page.locator("label", { hasText: "Name of the Entity" }) })
-        .first();
-
-    if (!(await group.count())) {
-        await pickEntityName(page, entityNameValue);
-        return;
-    }
-
-    const ng = group.locator("ng-select").first();
-    if (!(await ng.count())) {
-        await pickEntityName(page, entityNameValue);
-        return;
-    }
-
-    // If neither state nor gst to verify, fall back to first-match behavior
-    if (!expState && !expGst) {
-        await pickEntityName(page, entityNameValue);
-        return;
-    }
-
-    const tryOrder = [];
-    if (lastMatchedEntityIndex >= 0) tryOrder.push(lastMatchedEntityIndex);
-    for (let i = 0; i < 15; i++) {
-        if (i !== lastMatchedEntityIndex) tryOrder.push(i);
-    }
-
-    for (const attempt of tryOrder) {
-        logStep(`pick entity: trying option ${attempt + 1}`, 1);
-
-        const clearBtn = ng.locator(".ng-clear-wrapper").first();
-        if (await clearBtn.count()) {
-            await clearBtn.click().catch(() => { });
-            await page.waitForTimeout(200);
-        }
-
-        await ng.scrollIntoViewIfNeeded();
-        await ng.click();
-        const panel = page.locator(".ng-dropdown-panel");
-        await panel.waitFor({ state: "visible", timeout: 20000 });
-
-        const searchInput = panel.locator("input[type='text']").first();
-        if (await searchInput.count()) {
-            await searchInput.fill(name);
-            await page.waitForTimeout(300);
-        }
-
-        const options = panel.locator(".ng-option", { hasText: name });
-        const count = await options.count();
-        if (count === 0) throw new Error(`No entity options found for "${name}"`);
-        if (attempt >= count) continue;
-
-        await options.nth(attempt).click();
-        await panel.waitFor({ state: "hidden", timeout: 5000 }).catch(() => { });
-        await waitForLoaderToFinish(page);
-        await page.waitForTimeout(500);
-
-        const filledState = (await getStateValueOnForm(page)).toLowerCase();
-        const filledGst = (await getSellerGstOnForm(page)).toLowerCase();
-
-        logStep(`option ${attempt + 1}/${count}: state="${filledState}" gst="${filledGst}"`, 2);
-
-        const stateMatch = !expState || filledState === expState;
-        const gstMatch = !expGst || filledGst === expGst;
-
-        if (stateMatch && gstMatch) {
-            lastMatchedEntityIndex = attempt;
-            logStep(`entity matched on option ${attempt + 1} (cached for next row)`, 1);
-            return;
-        }
-
-        logStep(`mismatch (expected state="${expState}" gst="${expGst}"), trying next`, 2);
-    }
-
-    throw new Error(`Could not match entity "${name}" with State="${expState}" GST="${expGst}"`);
-}
-
 (async () => {
     if (!fs.existsSync(EXCEL_PATH)) {
         throw new Error(`Excel not found: ${EXCEL_PATH}`);
@@ -865,7 +732,6 @@ async function pickEntityWithStateMatch(page, entityNameValue, expectedState, ex
         const entityType = getVal(row, headerMap, "Entity Type*");
         const entityName = getVal(row, headerMap, "Name of the Entity *");
         const sellerGst = getVal(row, headerMap, "GST No. of Seller *");
-        const sellerState = getVal(row, headerMap, "State");
         const buyerGst = getVal(row, headerMap, "Buyer GST");
         const hsn = getVal(row, headerMap, "HSN CODE");
         const invno = getVal(row, headerMap, "E-Invoice Number*");
@@ -894,8 +760,8 @@ async function pickEntityWithStateMatch(page, entityNameValue, expectedState, ex
 
             console.log("wait for entity list: 500ms");
             await page.waitForTimeout(500);
-            logStep("pick entity name (match State + GST): start", 1);
-            await pickEntityWithStateMatch(page, entityName, sellerState, sellerGst);
+            logStep("pick entity name: start", 1);
+            await pickEntityName(page, entityName);
             logStep("pick entity name: done", 1);
             logStep("wait entity autofill: start", 1);
             await waitEntityAutofill(page);

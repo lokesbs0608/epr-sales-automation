@@ -1,0 +1,49 @@
+{
+  "cookies": [
+    {
+      "name": "login-token",
+      "value": "86008863f6394b68ba1d3f9a2e984927",
+      "domain": "eprplastic.cpcb.gov.in",
+      "path": "/epr",
+      "expires": 1779875230.35274,
+      "httpOnly": true,
+      "secure": true,
+      "sameSite": "Strict"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "https://eprplastic.cpcb.gov.in",
+      "localStorage": [
+        {
+          "name": "isBorderRounded2",
+          "value": "undefined"
+        },
+        {
+          "name": "isBorderRounded",
+          "value": "undefined"
+        },
+        {
+          "name": "mediaBreakPoint",
+          "value": "xl"
+        },
+        {
+          "name": "userDetails",
+          "value": "{\"full_name\":\"Shri  AMIT JAIN\",\"company_name\":\"M/s   TOPPAN SPECIALITY FILMS PRIVATE LIMITED\",\"email\":\"deepak.gupta@tsfilms.in\",\"profile_url\":\"\",\"user_id\":5383,\"user_type\":\"PWP\",\"user_role_id\":15,\"user_role_name\":\"PWP\",\"login_type\":\"PWP\",\"route\":\"/epr/pwp-dashboard\",\"type\":\"V2\",\"redirection_url\":\"\"}"
+        },
+        {
+          "name": "financialYear",
+          "value": "2026-27"
+        },
+        {
+          "name": "facility_type",
+          "value": "1"
+        },
+        {
+          "name": "process_code",
+          "value": "R2"
+        }
+      ]
+    }
+  ]
+}

@@ -10,7 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "exceljs": "^4.4.0",
+    "exceljs": "^3.4.0",
     "playwright": "^1.57.0"
   }
 }

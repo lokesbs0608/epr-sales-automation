@@ -2,6 +2,7 @@ const ExcelJS = require("exceljs");
 const { chromium } = require("playwright");
 const path = require("path");
 const fs = require("fs");
+const SAN = require("./sanitize");
 
 const PIBO_URL = "https://eprplastic.cpcb.gov.in/#/epr/pibo-operations/sales";
 
@@ -53,6 +54,7 @@ const EXCEL_BAK = `${OUTPUT_PATH}.bak`;
 const OUTPUT_BASENAME = path.basename(OUTPUT_PATH, path.extname(OUTPUT_PATH));
 const LOG_PATH = path.resolve(__dirname, `${OUTPUT_BASENAME}_log.csv`);
 const FILLED_OUTPUT_PATH = path.resolve(__dirname, `${OUTPUT_BASENAME}_filled.csv`);
+const STATE_DISTRICT_CSV = path.resolve(__dirname, "state_district_mapping.xlsx - State-District Mapping.csv");
 
 // ── Utility ──────────────────────────────────────────────────────────────────
 
@@ -820,6 +822,30 @@ async function resetToFreshPage(page) {
     const eprSet = buildEprSet(ws, headerMap);
     const headerList = getHeaderList(ws);
 
+    // Load the State/District master list once (sheet-agnostic spell-fixing).
+    let STATE_DISTRICT_MAP = null;
+    try {
+        STATE_DISTRICT_MAP = SAN.loadStateDistrictMap(STATE_DISTRICT_CSV);
+        console.log(`Loaded state/district map: ${STATE_DISTRICT_MAP.states.size} states`);
+    } catch (e) {
+        console.log(`State/district map not loaded (${String(e?.message || e)}); proceeding without spell-fix.`);
+    }
+
+    // Generic sanitize spec for PIBO sheets (PIBO's own column names). PIBO has
+    // no district / sales-date columns; missing columns are simply ignored.
+    const SANITIZE_SPEC = {
+        mandatory: ["ENTITY", "GST NO", "STATE", "CATEGORY", "Sum of QTY MT"],
+        dateFields: ["Sales date", "Sales date*", "INVOICE DATE"],
+        // NOTE: quantity (Sum of QTY MT) is intentionally NOT cleaned/rounded —
+        // it must be filled exactly as it appears in the Excel sheet.
+        numberFields: [
+            { name: "Sum of GST PAID", decimals: 2 },
+            { name: "RECYCLED CONTENT %" },
+        ],
+        stateField: "STATE",
+        map: STATE_DISTRICT_MAP,
+    };
+
     const browser = await chromium.launch({ headless: false });
     const context = await browser.newContext(
         fs.existsSync(STORAGE) ? { storageState: STORAGE } : {}
@@ -857,6 +883,23 @@ async function resetToFreshPage(page) {
         const eprInvoiceExisting = getVal(row, headerMap, "EPR Invoice Number");
         if (!isCellEmpty(eprInvoiceExisting)) {
             console.log(`Row ${r}: Skipped (EPR Invoice already present)`);
+            continue;
+        }
+
+        // --- Sanitize values + skip empty/zero rows with a reason ---
+        const san = SAN.sanitizeRow(row, headerMap, { getVal, setVal }, SANITIZE_SPEC);
+        if (san.notes.length) {
+            console.log(`Row ${r}: sanitized -> ${san.notes.join("; ")}`);
+        }
+        if (san.skip) {
+            const reason = `Skipped: ${san.reason}`;
+            console.log(`Row ${r}: ${reason}`);
+            setVal(row, headerMap, "Status", reason);
+            row.commit();
+            await safeWriteWorkbook(wb);
+            await syncInputWorkbook(wb);
+            appendLogRow(row, headerMap, { status: "Skipped", eprInvoiceNumber: "", message: san.reason });
+            appendFilledRow(row, headerMap, headerList, { message: reason });
             continue;
         }
 

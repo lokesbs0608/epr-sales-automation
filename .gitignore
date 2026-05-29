@@ -1,9 +1,20 @@
 /node_modules
-ERP_automations_output.xlsx
-*.bak
-*.tmp
+
+# Excel / spreadsheet data files — never commit these
 *.xlsx
 *.xlsm
 *.xls
 *.csv
 ~$*.xlsx
+
+# Login sessions — LOCAL ONLY, never push (these are auth tokens)
+storageState*.json
+
+# Temp / backup
+*.bak
+*.tmp
+
+# Generated chunking + per-run artifacts (orchestrate.js)
+chunks/
+report_*.txt
+report_latest.json

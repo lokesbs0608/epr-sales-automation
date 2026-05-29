@@ -2,8 +2,8 @@
 ERP_automations_output.xlsx
 *.bak
 *.tmp
-# *.xlsx
-# *.xlsm
-# *_log.csv
-# *_filled.csv
-# # ~$*.xlsx
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+~$*.xlsx

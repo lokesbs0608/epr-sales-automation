@@ -81,11 +81,15 @@ function logStep(message, level = 0) {
 }
 
 function formatQty(v) {
-    if (typeof v === "number") return v.toFixed(2);
-    const s = cellText(v);
-    const n = Number(s);
-    if (Number.isFinite(n)) return n.toFixed(2);
-    return s;
+    if (v === null || v === undefined || v === "") return "";
+    if (typeof v === "number") return String(v);
+    if (typeof v === "object") {
+        if (v.result !== null && v.result !== undefined) {
+            return typeof v.result === "number" ? String(v.result) : String(v.result).trim();
+        }
+        if (v.text) return String(v.text).trim();
+    }
+    return String(v).trim();
 }
 
 const CATEGORY_MAP = {

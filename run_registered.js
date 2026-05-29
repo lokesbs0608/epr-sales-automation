@@ -690,6 +690,15 @@ async function waitEntityAutofill(page) {
         throw new Error(`Sheet not found: ${SHEET}`);
     }
 
+    // Ensure the sheet has the columns we write results into (EPR + Status).
+    // Without these, results can't be written back and resume/dedup would break.
+    const addedCols = SAN.ensureWritebackColumns(ws, normHeader, ["EPR Invoice Number", "Status"]);
+    if (addedCols.length) {
+        console.log(`Added missing column(s): ${addedCols.join(", ")}`);
+        await safeWriteWorkbook(wb);
+        await syncInputWorkbook(wb);
+    }
+
     const headerMap = getHeaderMap(ws);
     const eprSet = buildEprSet(ws, headerMap);
     const headerList = getHeaderList(ws);

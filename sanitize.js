@@ -375,6 +375,36 @@ function sanitizeRow(row, headerMap, accessors, spec) {
     return { skip: false, reason: "", notes };
 }
 
+// ---------------------------------------------------------------------------
+// ensureWritebackColumns: make sure the sheet has the columns the worker writes
+// results into. If "EPR Invoice Number" / "Status" (or any names passed) are
+// missing, they are appended as new header columns. Returns the list of column
+// names that were added (empty if none). Caller saves the workbook afterwards.
+//
+//   ws        : exceljs worksheet
+//   getHeaderMap, normHeader : the caller's header helpers (kept consistent)
+//   names     : column names to ensure (default EPR + Status)
+// ---------------------------------------------------------------------------
+function ensureWritebackColumns(ws, normHeader, names = ["EPR Invoice Number", "Status"]) {
+    const headerRow = ws.getRow(1);
+    const existing = new Set();
+    headerRow.eachCell({ includeEmpty: false }, (cell) => {
+        const k = normHeader(cellText(cell.value));
+        if (k) existing.add(k);
+    });
+    let nextCol = ws.columnCount + 1;
+    const added = [];
+    for (const name of names) {
+        if (existing.has(normHeader(name))) continue;
+        headerRow.getCell(nextCol).value = name;
+        existing.add(normHeader(name));
+        added.push(name);
+        nextCol++;
+    }
+    if (added.length) headerRow.commit();
+    return added;
+}
+
 module.exports = {
     cellText,
     isBlank,
@@ -387,4 +417,5 @@ module.exports = {
     correctState,
     correctDistrict,
     sanitizeRow,
+    ensureWritebackColumns,
 };

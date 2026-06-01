@@ -5,6 +5,21 @@ const fs = require("fs");
 const SAN = require("./sanitize");
 
 const PIBO_URL = "https://eprplastic.cpcb.gov.in/#/epr/pibo-operations/sales";
+// Orchestrator passes --no-login so the worker trusts the shared session.
+const NO_LOGIN = process.argv.includes("--no-login");
+
+// Optional 2x2 window tiling via WIN_SLOT (set by orchestrator). Cosmetic only.
+function tileLaunchArgs() {
+    const slot = process.env.WIN_SLOT;
+    if (slot === undefined || slot === "") return { args: [], viewport: undefined };
+    const s = parseInt(slot, 10);
+    if (isNaN(s)) return { args: [], viewport: undefined };
+    const COLS = 2, CELL_W = 960, CELL_H = 540;
+    const x = (s % COLS) * CELL_W;
+    const y = Math.floor(s / COLS) * CELL_H;
+    return { args: [`--window-position=${x},${y}`, `--window-size=${CELL_W},${CELL_H}`], viewport: null };
+}
+const TILE = tileLaunchArgs();
 
 function getConfigPath() {
     const idx = process.argv.indexOf("--config");
@@ -846,14 +861,18 @@ async function resetToFreshPage(page) {
         map: STATE_DISTRICT_MAP,
     };
 
-    const browser = await chromium.launch({ headless: false });
-    const context = await browser.newContext(
-        fs.existsSync(STORAGE) ? { storageState: STORAGE } : {}
-    );
+    const browser = await chromium.launch({ headless: false, args: TILE.args });
+    const context = await browser.newContext({
+        ...(fs.existsSync(STORAGE) ? { storageState: STORAGE } : {}),
+        ...(TILE.viewport !== undefined ? { viewport: TILE.viewport } : {}),
+    });
     const page = await context.newPage();
 
-    await page.goto(PIBO_URL, { waitUntil: "domcontentloaded" });
+    await page.goto(PIBO_URL, { waitUntil: "domcontentloaded", timeout: 90000 });
     if (!fs.existsSync(STORAGE) || (await isLoginPage(page))) {
+        if (NO_LOGIN) {
+            throw new Error("Not logged in and --no-login set (orchestrator session invalid/expired). Re-run orchestrate to log in.");
+        }
         await attemptLogout(page);
         console.log("Login manually in this Playwright window, then press ENTER here...");
         await new Promise((res) => process.stdin.once("data", () => res()));
@@ -861,7 +880,7 @@ async function resetToFreshPage(page) {
         console.log("Saved session to storageState_pibo.json");
     }
 
-    await page.goto(PIBO_URL, { waitUntil: "domcontentloaded" });
+    await page.goto(PIBO_URL, { waitUntil: "domcontentloaded", timeout: 90000 });
     await page.waitForTimeout(3000);
     await waitForLoaderToFinish(page);
 
@@ -1020,7 +1039,7 @@ async function resetToFreshPage(page) {
             await fillByName(page, "recycled_plastic", recycledContent);
 
             // Submit, confirm, read toast + EPR number
-            const result = await submitAndCaptureResult(page);
+            const result = await submitAndCaptureResult(page, eprSet);
 
             // SAVE TO EXCEL IMMEDIATELY (before page refresh which might crash)
             if (result.isSuccess && result.eprInvoice) {

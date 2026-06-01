@@ -1,0 +1,8 @@
+{
+  "inputExcel": "PP_FINAL_REPORT.xlsx",
+  "sheetName": "PP BAAZPUR",
+  "outputExcel": "PP_FINAL_REPORT.xlsx",
+  "plasticType": "PP",
+  "storageState": "storageState_registered.json",
+  "max_rows": 0
+}

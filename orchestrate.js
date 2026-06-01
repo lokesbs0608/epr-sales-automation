@@ -31,6 +31,7 @@ const ExcelJS = require("exceljs");
 const path = require("path");
 const fs = require("fs");
 const { spawn } = require("child_process");
+const SAN = require("./sanitize");
 
 // ---------- CLI ----------
 function argVal(flag, def = null) {
@@ -56,15 +57,33 @@ function argValsMulti(flag) {
 const CONFIG_PATHS = argValsMulti("--config");
 const CLI_CHUNK_SIZE = argVal("--chunk-size");
 const CLI_MAX_WINDOWS = argVal("--max-windows");
+const CLI_MAX_CHUNKS = argVal("--max-chunks"); // smoke-test: only run first N chunks per job
 const CLI_WORKER = argVal("--worker"); // override worker script for all configs
 const CLI_STORAGE = argVal("--storage"); // override shared storage-state file
 const FRESH = argFlag("--fresh");
 const NO_MERGE = argFlag("--no-merge");
 const SKIP_LOGIN = argFlag("--skip-login");
 const PREPARE_ONLY = argFlag("--prepare-only"); // chunk + generate configs, then stop (no browser)
+// --pending: sanitize, keep ONLY rows with no valid EPR yet AND with mandatory
+// fields present, then auto-split those into 3 (if <200) or 4 balanced chunks
+// (override with --windows N). This replaces fixed 500-row chunking.
+const PENDING_MODE = argFlag("--pending");
+const CLI_WINDOWS = argVal("--windows"); // override auto window count in --pending mode
 
 const URL = "https://eprplastic.cpcb.gov.in/#/epr/details/sales";
 const CHUNK_DIR = path.resolve(__dirname, "chunks");
+
+// A valid EPR is all digits.
+const VALID_EPR_RE = /^\d{10,}$/;
+function nhKey(s) { return String(s || "").trim().replace(/\s+/g, " ").toLowerCase(); }
+function findColByNames(ws, names) {
+    let c = null;
+    ws.getRow(1).eachCell((cell, n) => { if (c === null && names.some((x) => nhKey(x) === nhKey(cellText(cell.value)))) c = n; });
+    return c;
+}
+const INVOICE_NAMES = ["E-Invoice Number*", "E-Invoice Number", "INVOICE No", "Invoice Number"];
+// Mandatory fields a submittable row must have (skip empty/0). Registered-sales schema.
+const MANDATORY_FIELDS = ["Quantity Sold(MT)", "Name of the Entity *", "GST No. of Seller *", "State*", "District*", "Sales date*", "E-Invoice Number*"];
 
 // Pick the worker script for a config. Priority: --worker flag > config.worker
 // field > inferred from filename (registered / unregistered / pibo) > default.
@@ -169,6 +188,51 @@ function collectDataRows(ws) {
     return rows;
 }
 
+// --pending mode: return only rows that still need an EPR AND are submittable.
+// Excludes: rows that already have a valid EPR; rows missing any mandatory field
+// or with a 0 quantity. Returns { pending:[rowNums], skippedNoEpr, skippedBad }.
+function collectPendingRows(ws) {
+    const eprCol = findColByNames(ws, ["EPR Invoice Number"]);
+    const colOf = {};
+    for (const name of MANDATORY_FIELDS) colOf[name] = findColByNames(ws, [name]);
+    const qtyCol = colOf["Quantity Sold(MT)"];
+    const lastCol = ws.columnCount;
+
+    const pending = [];
+    let alreadyDone = 0, excludedBad = 0;
+    const reasons = {};
+    for (let r = 2; r <= ws.rowCount; r++) {
+        const row = ws.getRow(r);
+        if (isRowEmpty(row, lastCol)) continue;
+        // already has a valid EPR -> done, skip
+        if (eprCol) {
+            const e = cellText(row.getCell(eprCol).value);
+            if (VALID_EPR_RE.test(e)) { alreadyDone++; continue; }
+        }
+        // submittable check: every mandatory field present, qty != 0
+        let bad = null;
+        for (const name of MANDATORY_FIELDS) {
+            const col = colOf[name];
+            if (!col) continue; // sheet lacks this column -> don't enforce
+            const v = cellText(row.getCell(col).value);
+            if (v === "") { bad = `${name} empty`; break; }
+            if (col === qtyCol && Number(v) === 0) { bad = `${name} is 0`; break; }
+        }
+        if (bad) { excludedBad++; reasons[bad] = (reasons[bad] || 0) + 1; continue; }
+        pending.push(r);
+    }
+    return { pending, alreadyDone, excludedBad, reasons };
+}
+
+// Split an array into N balanced contiguous groups.
+function balancedSplit(arr, n) {
+    n = Math.max(1, Math.min(n, arr.length));
+    const groups = [];
+    const per = Math.ceil(arr.length / n);
+    for (let i = 0; i < arr.length; i += per) groups.push(arr.slice(i, i + per));
+    return groups;
+}
+
 // Writes a chunk workbook containing the header row + the given source rows,
 // preserving cell value types (dates/numbers/strings). Skips rewrite when the
 // file already exists (resume-friendly) unless --fresh.
@@ -215,22 +279,41 @@ async function prepareJob(plan, job) {
         settings.outputExcel = `${base}_output.xlsx`;
     }
 
-    const dataRows = collectDataRows(ws);
-    const total = dataRows.length;
-    const chunkSize = plan.chunkSize;
     const worker = job.worker;
+    let groups = [];
+    let total = 0;
 
-    // Split row numbers into groups of chunkSize.
-    const groups = [];
-    if (total <= chunkSize) {
-        groups.push(dataRows); // single chunk = whole sheet
-    } else {
-        for (let i = 0; i < dataRows.length; i += chunkSize) {
-            groups.push(dataRows.slice(i, i + chunkSize));
+    if (PENDING_MODE) {
+        // Sanitize-then-filter: only rows needing an EPR and submittable.
+        const { pending, alreadyDone, excludedBad, reasons } = collectPendingRows(ws);
+        total = pending.length;
+        if (total === 0) {
+            log(`[${job.name}] PENDING: nothing to do (already done=${alreadyDone}, excluded=${excludedBad}).`);
+            return { job, settings, worker, chunks: [], total: 0 };
         }
+        // Auto window count: <200 -> 3, else 4. Override with --windows / --max-windows.
+        let n = total < 200 ? 3 : 4;
+        if (CLI_WINDOWS) n = Number(CLI_WINDOWS);
+        else if (CLI_MAX_WINDOWS) n = Number(CLI_MAX_WINDOWS);
+        groups = balancedSplit(pending, n);
+        log(`[${job.name}] PENDING: ${total} to run (already done=${alreadyDone}, excluded empty/0=${excludedBad}) -> ${groups.length} balanced chunk(s)`);
+        if (excludedBad) log(`[${job.name}] excluded reasons: ${JSON.stringify(reasons)}`);
+    } else {
+        const dataRows = collectDataRows(ws);
+        total = dataRows.length;
+        const chunkSize = plan.chunkSize;
+        if (total <= chunkSize) {
+            groups.push(dataRows);
+        } else {
+            for (let i = 0; i < dataRows.length; i += chunkSize) groups.push(dataRows.slice(i, i + chunkSize));
+        }
+        const maxChunks = CLI_MAX_CHUNKS ? Number(CLI_MAX_CHUNKS) : 0;
+        if (maxChunks > 0 && groups.length > maxChunks) {
+            log(`[${job.name}] --max-chunks=${maxChunks}: limiting ${groups.length} chunks -> ${maxChunks} (smoke test)`);
+            groups = groups.slice(0, maxChunks);
+        }
+        log(`[${job.name}] ${total} data rows -> ${groups.length} chunk(s) of <=${chunkSize} (worker: ${worker})`);
     }
-
-    log(`[${job.name}] ${total} data rows -> ${groups.length} chunk(s) of <=${chunkSize} (worker: ${worker})`);
 
     const chunks = [];
     for (let i = 0; i < groups.length; i++) {
@@ -259,54 +342,90 @@ async function prepareJob(plan, job) {
     return { job, settings, worker, chunks, total };
 }
 
+// Is the saved session file present and its login-token cookie not expired?
+function sessionLooksValid(storagePath) {
+    try {
+        const s = JSON.parse(fs.readFileSync(storagePath, "utf8"));
+        const tok = (s.cookies || []).find((c) => /login.?token/i.test(c.name));
+        if (!tok) return { ok: false, why: "no login-token cookie" };
+        if (tok.expires && tok.expires > 0) {
+            const msLeft = tok.expires * 1000 - Date.now();
+            if (msLeft <= 0) return { ok: false, why: "login-token expired" };
+            return { ok: true, minsLeft: Math.round(msLeft / 60000) };
+        }
+        return { ok: true, minsLeft: null }; // session cookie, no expiry
+    } catch (e) {
+        return { ok: false, why: `unreadable (${e.message})` };
+    }
+}
+
 // ---------- login once ----------
+// IMPORTANT: when a valid session already exists we DO NOT re-open a browser or
+// re-save it. Re-saving previously captured an incomplete state and bricked the
+// session for all workers. We only prompt for a fresh login when the saved
+// session is missing/expired (and never when --skip-login is set).
 async function ensureLogin(plan) {
     const storagePath = path.resolve(__dirname, plan.storageState);
+
     if (SKIP_LOGIN) {
         if (!fs.existsSync(storagePath)) {
             throw new Error(`--skip-login set but storage state missing: ${storagePath}`);
         }
-        log(`Skipping login; trusting existing ${plan.storageState}`);
+        const v = sessionLooksValid(storagePath);
+        log(`--skip-login: trusting ${plan.storageState}` + (v.ok ? (v.minsLeft != null ? ` (token ~${v.minsLeft} min left)` : "") : ` (WARNING: ${v.why})`));
         return;
     }
+
+    const v = sessionLooksValid(storagePath);
+    if (v.ok) {
+        // Valid session already saved — use it as-is. Never overwrite.
+        log(`Reusing existing session -> ${plan.storageState}` + (v.minsLeft != null ? ` (token ~${v.minsLeft} min left)` : ""));
+        if (v.minsLeft != null && v.minsLeft < 20) {
+            log(`⚠️ Session token expires in ~${v.minsLeft} min — long runs may need a re-login partway. Consider logging in fresh first.`);
+        }
+        return;
+    }
+
+    // No valid session — do an interactive login and save it.
+    log(`No valid session (${v.why}). Opening a login window...`);
     const { chromium } = require("playwright");
     const browser = await chromium.launch({ headless: false });
     const context = await browser.newContext(
         fs.existsSync(storagePath) ? { storageState: storagePath } : {}
     );
     const page = await context.newPage();
-    await page.goto(plan.url, { waitUntil: "domcontentloaded" });
-
-    const isLogin = async () => {
-        if (await page.locator('input[type="password"]').first().count()) return true;
-        if (await page.locator('button:has-text("Login"), button:has-text("Sign In")').first().count()) return true;
-        return false;
-    };
-
-    if (!fs.existsSync(storagePath) || (await isLogin())) {
-        log("Login required. Log in manually in the opened window, then press ENTER here...");
-        await new Promise((res) => process.stdin.once("data", () => res()));
-        await context.storageState({ path: storagePath });
-        log(`Saved shared session -> ${plan.storageState}`);
-    } else {
-        // refresh/extend the saved session
-        await context.storageState({ path: storagePath });
-        log(`Reusing valid session -> ${plan.storageState}`);
+    await page.goto(plan.url, { waitUntil: "domcontentloaded", timeout: 90000 });
+    log("Log in manually in the opened window. WAIT until your dashboard fully loads, THEN press ENTER here...");
+    await new Promise((res) => process.stdin.once("data", () => res()));
+    // Verify the app is actually loaded before saving, so we never persist a
+    // half-authenticated state.
+    try {
+        await page.waitForSelector("#ScrollableSimpleTableBody", { timeout: 15000 });
+    } catch {
+        log("⚠️ Could not confirm the sales table loaded — saving session anyway, but it may be incomplete.");
     }
+    await context.storageState({ path: storagePath });
+    log(`Saved session -> ${plan.storageState}`);
     await browser.close();
 }
 
 // ---------- spawn a single chunk worker ----------
-function runWorker(chunk, jobName) {
+function runWorker(chunk, jobName, slot) {
     return new Promise((resolve) => {
         const runlog = path.join(CHUNK_DIR, `${chunk.tag}.runlog.txt`);
         const out = fs.createWriteStream(runlog, { flags: "a" });
         const prefix = `[${jobName}#${chunk.idx}]`;
         log(`${prefix} start (${chunk.rows} rows) -> ${path.basename(chunk.config)}`);
 
-        const child = spawn("node", [path.resolve(__dirname, chunk.worker), "--config", chunk.config], {
+        // WIN_SLOT tiles each worker's browser into a 2x2 grid quadrant so all
+        // windows are visible at once (no tab-switching). Cosmetic only.
+        const childEnv = { ...process.env };
+        if (slot !== undefined && slot !== null) childEnv.WIN_SLOT = String(slot);
+
+        const child = spawn("node", [path.resolve(__dirname, chunk.worker), "--config", chunk.config, "--no-login"], {
             cwd: __dirname,
             stdio: ["ignore", "pipe", "pipe"], // no stdin -> children never block on login prompt
+            env: childEnv,
         });
 
         const pipe = (stream) => {
@@ -331,16 +450,27 @@ function runWorker(chunk, jobName) {
 }
 
 // ---------- per-job pool (cap concurrency) ----------
-async function runJobPool(prepared, maxWindows) {
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+async function runJobPool(prepared, maxWindows, startStaggerMs = 0, slotBase = 0) {
     const { job, chunks } = prepared;
     const queue = [...chunks];
     const results = [];
-    const workers = new Array(Math.min(maxWindows, queue.length)).fill(0).map(async () => {
-        while (queue.length) {
-            const chunk = queue.shift();
-            results.push(await runWorker(chunk, job.name));
-        }
-    });
+    const n = Math.min(maxWindows, queue.length);
+    const workers = [];
+    for (let i = 0; i < n; i++) {
+        // Stagger initial launches so the windows don't all hit the portal at
+        // the same instant (which caused page.goto timeouts under load).
+        const startDelay = i * startStaggerMs;
+        const slot = slotBase + i; // each lane keeps its grid quadrant for all its chunks
+        workers.push((async () => {
+            if (startDelay) await sleep(startDelay);
+            while (queue.length) {
+                const chunk = queue.shift();
+                results.push(await runWorker(chunk, job.name, slot));
+            }
+        })());
+    }
     await Promise.all(workers);
     return results;
 }
@@ -587,7 +717,13 @@ function buildReport(preparedList, chunkResults, startedAt) {
     //    so concurrent windows total = jobs * maxWindowsPerJob.
     log(`Launching workers (up to ${plan.maxWindowsPerJob} per job, ${prepared.length} jobs in parallel)...`);
     const allResults = await Promise.all(
-        prepared.map((p) => runJobPool(p, plan.maxWindowsPerJob))
+        prepared.map((p, jobIdx) => {
+            // In --pending mode the chunk count IS the desired window count (3/4),
+            // so run all of a job's chunks concurrently. Otherwise cap per job.
+            const windows = PENDING_MODE ? p.chunks.length : plan.maxWindowsPerJob;
+            const slotBase = jobIdx * (PENDING_MODE ? p.chunks.length : plan.maxWindowsPerJob);
+            return runJobPool(p, windows, 5000, slotBase);
+        })
     );
 
     // 4) Chunk-process exit codes.

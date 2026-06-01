@@ -5,6 +5,25 @@ const fs = require("fs");
 const SAN = require("./sanitize");
 
 const URL = "https://eprplastic.cpcb.gov.in/#/epr/details/sales";
+// When launched by orchestrate.js the login is already done and the shared
+// session saved; the worker must NOT prompt for an interactive login (it has no
+// stdin and would hang forever). --no-login makes it trust the saved session.
+const NO_LOGIN = process.argv.includes("--no-login");
+
+// Optional 2x2 window tiling: orchestrator sets WIN_SLOT (0-3) so each browser
+// opens in its own screen quadrant (no tab-switching). Cosmetic only.
+function tileLaunchArgs() {
+    const slot = process.env.WIN_SLOT;
+    if (slot === undefined || slot === "") return { args: [], viewport: undefined };
+    const s = parseInt(slot, 10);
+    if (isNaN(s)) return { args: [], viewport: undefined };
+    const COLS = 2, CELL_W = 960, CELL_H = 540; // 1920x1080 / 2x2
+    const x = (s % COLS) * CELL_W;
+    const y = Math.floor(s / COLS) * CELL_H;
+    return { args: [`--window-position=${x},${y}`, `--window-size=${CELL_W},${CELL_H}`], viewport: null };
+}
+const TILE = tileLaunchArgs();
+
 function getConfigPath() {
     const idx = process.argv.indexOf("--config");
     if (idx !== -1 && process.argv[idx + 1]) {
@@ -550,30 +569,29 @@ async function attemptLogout(page) {
     return false;
 }
 
+// A valid EPR invoice number is all digits (e.g. 202605299010298).
+const VALID_EPR = /^\d{10,}$/;
+
+// Read the EPR ONLY from the dedicated copy field, and ONLY accept a strictly
+// valid (all-digit) value. Never scrape label/sibling text — that is what
+// produced garbage like "EPR Invoice Number\nReset" under timing races.
 async function readEprInvoiceNumber(page) {
     const input = page.locator("#invoiceNumberCopy").first();
     if (await input.count()) {
         try {
             const val = (await input.inputValue()).trim();
-            if (val) return val;
+            if (VALID_EPR.test(val)) return val;
         } catch { }
-    }
-    const label = page.locator("text=/EPR\\s*Invoice\\s*Number/i").first();
-    if (await label.count()) {
-        const container = label.locator("xpath=ancestor-or-self::*[self::div or self::span or self::p][1]");
-        const text = (await container.innerText().catch(() => "")) || "";
-        if (/confirm entered details/i.test(text)) return "";
-        const match = text.match(/EPR\\s*Invoice\\s*Number\\s*[:\\-]?\\s*([A-Za-z0-9\\-\\/]+)/i);
-        if (match && match[1]) return match[1].trim();
-        const sibling = label.locator("xpath=following::span[1] | following::div[1] | following::p[1]").first();
-        const sibText = (await sibling.innerText().catch(() => "")).trim();
-        if (/confirm entered details/i.test(sibText)) return "";
-        if (sibText) return sibText;
     }
     return "";
 }
 
-async function waitForEprInvoiceNumber(page, timeoutMs = 20000) {
+// Wait for a VALID, STABLE, NEW EPR number after submit.
+//   - format-validated (digits only) -> kills garbage
+//   - stable: same value on two reads ~600ms apart -> kills mid-update transients
+//     (the cross-window race that recorded another window's number)
+//   - not already in avoidSet -> kills stale reads showing the previous row's EPR
+async function waitForEprInvoiceNumber(page, avoidSet, timeoutMs = 30000) {
     const start = Date.now();
     logStep("wait EPR invoice: start", 1);
     while (Date.now() - start < timeoutMs) {
@@ -586,7 +604,13 @@ async function waitForEprInvoiceNumber(page, timeoutMs = 20000) {
             }
         }
         const val = await readEprInvoiceNumber(page);
-        if (val) return val;
+        if (val && !(avoidSet && avoidSet.has(val))) {
+            // Stability re-read: confirm the field still shows the same value.
+            await page.waitForTimeout(600);
+            const val2 = await readEprInvoiceNumber(page);
+            if (val2 === val) return val;
+            logStep(`EPR not stable (${val} -> ${val2}), re-reading...`, 1);
+        }
         await page.waitForTimeout(300);
     }
     logStep("wait EPR invoice: timeout", 1);
@@ -727,14 +751,51 @@ async function waitEntityAutofill(page) {
         map: STATE_DISTRICT_MAP,
     };
 
-    const browser = await chromium.launch({ headless: false });
-    const context = await browser.newContext(
-        fs.existsSync(STORAGE) ? { storageState: STORAGE } : {}
-    );
+    const browser = await chromium.launch({ headless: false, args: TILE.args });
+    const context = await browser.newContext({
+        ...(fs.existsSync(STORAGE) ? { storageState: STORAGE } : {}),
+        ...(TILE.viewport !== undefined ? { viewport: TILE.viewport } : {}),
+    });
     const page = await context.newPage();
 
-    await page.goto(URL, { waitUntil: "domcontentloaded" });
-    if (!fs.existsSync(STORAGE) || (await isLoginPage(page))) {
+    // First navigation is retry-safe: under concurrent load the portal can drop
+    // a connection (ERR_CONNECTION_CLOSED). Don't let that kill the whole chunk.
+    let navOk = false;
+    for (let a = 1; a <= 5 && !navOk; a++) {
+        try {
+            await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 90000 });
+            navOk = true;
+        } catch (e) {
+            logStep(`initial nav attempt ${a} failed (${String(e?.message || e).split("\n")[0]}), retrying...`, 1);
+            await page.waitForTimeout(3000 * a);
+        }
+    }
+    if (!navOk) throw new Error("Could not load the portal after 5 attempts (connection repeatedly dropped).");
+
+    if (NO_LOGIN) {
+        // Launched by orchestrator with a shared, already-valid session. Under
+        // concurrent load the SPA can be slow to render, so isLoginPage() may
+        // give a FALSE positive. Don't bail — retry the load a few times and
+        // only fail if the app genuinely never appears (real expired session).
+        let ready = false;
+        for (let attempt = 1; attempt <= 5 && !ready; attempt++) {
+            try {
+                await page.waitForSelector("#ScrollableSimpleTableBody", { timeout: 30000 });
+                ready = true;
+            } catch {
+                if (await isLoginPage(page)) {
+                    logStep(`session check attempt ${attempt}: login page detected, reloading...`, 1);
+                } else {
+                    logStep(`session check attempt ${attempt}: app not ready, reloading...`, 1);
+                }
+                await page.waitForTimeout(3000 * attempt);
+                await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 90000 }).catch(() => {});
+            }
+        }
+        if (!ready) {
+            throw new Error("App never loaded after retries — shared session likely expired. Re-login (delete storageState and run a single worker once) then retry.");
+        }
+    } else if (!fs.existsSync(STORAGE) || (await isLoginPage(page))) {
         await attemptLogout(page);
         console.log("Login manually in this Playwright window, then press ENTER here...");
         await new Promise((res) => process.stdin.once("data", () => res()));
@@ -742,7 +803,7 @@ async function waitEntityAutofill(page) {
         console.log("Saved session to storageState.json");
     }
 
-    await page.goto(URL, { waitUntil: "domcontentloaded" });
+    await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 90000 });
     await page.waitForSelector("#ScrollableSimpleTableBody", { timeout: 60000 });
     await clickAddNew(page);
 
@@ -848,12 +909,12 @@ async function waitEntityAutofill(page) {
                 logStep(`toast: ${toastText}`, 1);
             }
 
-            const eprInvoice = await waitForEprInvoiceNumber(page);
+            const eprInvoice = await waitForEprInvoiceNumber(page, eprSet);
+            if (!eprInvoice) {
+                throw new Error("Valid EPR Invoice Number not found after submit (will retry on resume).");
+            }
             if (eprSet.has(eprInvoice)) {
                 throw new Error("Duplicate EPR Invoice Number: " + eprInvoice);
-            }
-            if (!eprInvoice) {
-                throw new Error("EPR Invoice Number not found after submit.");
             }
             logStep(`EPR invoice: ${eprInvoice}`, 1);
 

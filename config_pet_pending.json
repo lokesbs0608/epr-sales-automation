@@ -1,0 +1,8 @@
+{
+  "inputExcel": "PET_FINAL_REPORT.xlsx",
+  "sheetName": "PET BAAZPUR",
+  "outputExcel": "PET_FINAL_REPORT.xlsx",
+  "plasticType": "PET",
+  "storageState": "storageState_registered.json",
+  "max_rows": 0
+}

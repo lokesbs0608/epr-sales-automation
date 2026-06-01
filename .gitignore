@@ -18,3 +18,11 @@ storageState*.json
 chunks/
 report_*.txt
 report_latest.json
+
+# Excel backups / run-specific output lists (regenerated, not source)
+*.prebackfill
+cleanup_list.txt
+duplicate_epr_list.txt
+*_FINAL_REPORT.xlsx
+PP_PENDING.xlsx
+PET_PENDING.xlsx

@@ -5,6 +5,23 @@ const fs = require("fs");
 const SAN = require("./sanitize");
 
 const URL = "https://eprplastic.cpcb.gov.in/#/epr/details/sales";
+// See run_registered.js: orchestrator passes --no-login so the worker trusts the
+// shared session instead of hanging on an interactive prompt (no stdin).
+const NO_LOGIN = process.argv.includes("--no-login");
+
+// Optional 2x2 window tiling via WIN_SLOT (set by orchestrator). Cosmetic only.
+function tileLaunchArgs() {
+    const slot = process.env.WIN_SLOT;
+    if (slot === undefined || slot === "") return { args: [], viewport: undefined };
+    const s = parseInt(slot, 10);
+    if (isNaN(s)) return { args: [], viewport: undefined };
+    const COLS = 2, CELL_W = 960, CELL_H = 540;
+    const x = (s % COLS) * CELL_W;
+    const y = Math.floor(s / COLS) * CELL_H;
+    return { args: [`--window-position=${x},${y}`, `--window-size=${CELL_W},${CELL_H}`], viewport: null };
+}
+const TILE = tileLaunchArgs();
+
 function getConfigPath() {
     const idx = process.argv.indexOf("--config");
     if (idx !== -1 && process.argv[idx + 1]) {
@@ -729,44 +746,32 @@ async function attemptLogout(page) {
     return false;
 }
 
+// A valid EPR invoice number is all digits (e.g. 202605299010298).
+const VALID_EPR = /^\d{10,}$/;
+
+// Read the EPR ONLY from the dedicated copy field, strictly format-validated.
+// No label/sibling/copy-button scraping (that produced garbage under races).
 async function readEprInvoiceNumber(page) {
-    // Preferred: read disabled input value
     const input = page.locator("#invoiceNumberCopy").first();
     if (await input.count()) {
         try {
             const val = (await input.inputValue()).trim();
-            if (val) return val;
+            if (VALID_EPR.test(val)) return val;
         } catch { }
-    }
-
-    // Try common patterns: label + value near it.
-    const label = page.locator("text=/EPR\\s*Invoice\\s*Number/i").first();
-    if (await label.count()) {
-        const container = label.locator("xpath=ancestor-or-self::*[self::div or self::span or self::p][1]");
-        const text = (await container.innerText().catch(() => "")) || "";
-        const match = text.match(/EPR\s*Invoice\s*Number\s*[:\-]?\s*([A-Za-z0-9\-\/]+)/i);
-        if (match && match[1]) return match[1].trim();
-        const sibling = label.locator("xpath=following::span[1] | following::div[1] | following::p[1]").first();
-        const sibText = (await sibling.innerText().catch(() => "")).trim();
-        if (sibText) return sibText;
-    }
-
-    // Fallback: look for copy button near bottom-left block
-    const copyBlock = page.locator("button", { hasText: /copy/i }).first();
-    if (await copyBlock.count()) {
-        const parent = copyBlock.locator("xpath=ancestor::*[self::div or self::p][1]");
-        const text = (await parent.innerText().catch(() => "")).trim();
-        const match = text.match(/([A-Za-z0-9\-\/]{6,})/);
-        if (match && match[1]) return match[1].trim();
     }
     return "";
 }
 
-async function waitForEprInvoiceNumber(page, timeoutMs = 20000) {
+// Wait for a VALID, STABLE, NEW EPR after submit (see run_registered.js).
+async function waitForEprInvoiceNumber(page, avoidSet, timeoutMs = 30000) {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
         const val = await readEprInvoiceNumber(page);
-        if (val) return val;
+        if (val && !(avoidSet && avoidSet.has(val))) {
+            await page.waitForTimeout(600);
+            const val2 = await readEprInvoiceNumber(page);
+            if (val2 === val) return val;
+        }
         await page.waitForTimeout(300);
     }
     return "";
@@ -878,16 +883,44 @@ async function waitEntityAutofill(page) {
         map: STATE_DISTRICT_MAP,
     };
 
-    const browser = await chromium.launch({ headless: false });
-    const context = await browser.newContext(
-        fs.existsSync(STORAGE) ? { storageState: STORAGE } : {}
-    );
+    const browser = await chromium.launch({ headless: false, args: TILE.args });
+    const context = await browser.newContext({
+        ...(fs.existsSync(STORAGE) ? { storageState: STORAGE } : {}),
+        ...(TILE.viewport !== undefined ? { viewport: TILE.viewport } : {}),
+    });
     const page = await context.newPage();
 
-    await page.goto(URL, { waitUntil: "domcontentloaded" });
+    // First navigation is retry-safe (portal may drop a connection under load).
+    let navOk = false;
+    for (let a = 1; a <= 5 && !navOk; a++) {
+        try {
+            await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 90000 });
+            navOk = true;
+        } catch (e) {
+            logStep(`initial nav attempt ${a} failed (${String(e?.message || e).split("\n")[0]}), retrying...`, 1);
+            await page.waitForTimeout(3000 * a);
+        }
+    }
+    if (!navOk) throw new Error("Could not load the portal after 5 attempts (connection repeatedly dropped).");
 
-    // login once (only if no storage state)
-    if (!fs.existsSync(STORAGE) || (await isLoginPage(page))) {
+    if (NO_LOGIN) {
+        // Shared session (orchestrator). Retry app load before giving up — under
+        // concurrent load isLoginPage() can false-positive while the SPA renders.
+        let ready = false;
+        for (let attempt = 1; attempt <= 5 && !ready; attempt++) {
+            try {
+                await page.waitForSelector("#ScrollableSimpleTableBody", { timeout: 30000 });
+                ready = true;
+            } catch {
+                logStep(`session check attempt ${attempt}: app not ready, reloading...`, 1);
+                await page.waitForTimeout(3000 * attempt);
+                await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 90000 }).catch(() => {});
+            }
+        }
+        if (!ready) {
+            throw new Error("App never loaded after retries — shared session likely expired. Re-login then retry.");
+        }
+    } else if (!fs.existsSync(STORAGE) || (await isLoginPage(page))) {
         await attemptLogout(page);
         console.log("Login manually in this Playwright window, then press ENTER here...");
         await new Promise((res) => process.stdin.once("data", () => res()));
@@ -896,7 +929,7 @@ async function waitEntityAutofill(page) {
     }
 
     // ensure we are on sales page and table exists
-    await page.goto(URL, { waitUntil: "domcontentloaded" });
+    await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 90000 });
     await page.waitForSelector("#ScrollableSimpleTableBody", { timeout: 60000 });
     await clickAddNew(page);
     const eprSet = buildEprSet(ws, headerMap);
@@ -1085,9 +1118,9 @@ async function waitEntityAutofill(page) {
             logStep("submit: done", 1);
 
             logStep("read EPR invoice: start", 1);
-            const eprInvoice = await waitForEprInvoiceNumber(page);
+            const eprInvoice = await waitForEprInvoiceNumber(page, eprSet);
             if (!eprInvoice) {
-                throw new Error("EPR Invoice Number not found after submit.");
+                throw new Error("Valid EPR Invoice Number not found after submit (will retry on resume).");
             }
             if (eprSet.has(eprInvoice)) {
                 throw new Error("Duplicate EPR Invoice Number: " + eprInvoice);

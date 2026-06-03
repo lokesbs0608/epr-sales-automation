@@ -86,11 +86,12 @@ const INVOICE_NAMES = ["E-Invoice Number*", "E-Invoice Number", "INVOICE No", "I
 const MANDATORY_FIELDS = ["Quantity Sold(MT)", "Name of the Entity *", "GST No. of Seller *", "State*", "District*", "Sales date*", "E-Invoice Number*"];
 
 // Pick the worker script for a config. Priority: --worker flag > config.worker
-// field > inferred from filename (registered / unregistered / pibo) > default.
+// field > inferred from filename (upload / unregistered / pibo) > default.
 function resolveWorker(cfg, cfgPath) {
     if (CLI_WORKER) return CLI_WORKER;
     if (cfg.worker) return cfg.worker;
     const name = path.basename(cfgPath).toLowerCase();
+    if (name.includes("upload")) return "run_upload.js";
     if (name.includes("unregist")) return "run_unregistered.js";
     if (name.includes("pibo")) return "pibo_data.js";
     return "run_registered.js";
@@ -224,6 +225,33 @@ function collectPendingRows(ws) {
     return { pending, alreadyDone, excludedBad, reasons };
 }
 
+// --pending for PDF UPLOAD: a row needs uploading if it HAS a valid EPR but its
+// "Invoice update Status" is not yet success. (The portal is the real source of
+// truth; the worker still re-checks and skips green-in-portal rows.)
+function collectPendingUploadRows(ws) {
+    const eprCol = findColByNames(ws, ["EPR Invoice Number"]);
+    const uplCol = findColByNames(ws, ["Invoice update Status"]);
+    const invCol = findColByNames(ws, INVOICE_NAMES);
+    const lastCol = ws.columnCount;
+
+    const pending = [];
+    let alreadyUploaded = 0, noEpr = 0, noInvoice = 0;
+    for (let r = 2; r <= ws.rowCount; r++) {
+        const row = ws.getRow(r);
+        if (isRowEmpty(row, lastCol)) continue;
+        const epr = eprCol ? cellText(row.getCell(eprCol).value) : "";
+        if (!VALID_EPR_RE.test(epr)) { noEpr++; continue; } // can't upload without EPR
+        if (invCol && cellText(row.getCell(invCol).value) === "") { noInvoice++; continue; }
+        if (uplCol) {
+            const u = cellText(row.getCell(uplCol).value).toLowerCase();
+            if (u.includes("success") || u.includes("sucess")) { alreadyUploaded++; continue; }
+        }
+        pending.push(r);
+    }
+    return { pending, alreadyDone: alreadyUploaded, excludedBad: noEpr + noInvoice,
+             reasons: { "no EPR": noEpr, "no invoice no": noInvoice } };
+}
+
 // Split an array into N balanced contiguous groups.
 function balancedSplit(arr, n) {
     n = Math.max(1, Math.min(n, arr.length));
@@ -284,8 +312,10 @@ async function prepareJob(plan, job) {
     let total = 0;
 
     if (PENDING_MODE) {
-        // Sanitize-then-filter: only rows needing an EPR and submittable.
-        const { pending, alreadyDone, excludedBad, reasons } = collectPendingRows(ws);
+        // Upload jobs filter on "needs PDF upload"; data-entry jobs on "needs EPR".
+        const isUpload = /run_upload\.js$/.test(job.worker || "");
+        const { pending, alreadyDone, excludedBad, reasons } =
+            isUpload ? collectPendingUploadRows(ws) : collectPendingRows(ws);
         total = pending.length;
         if (total === 0) {
             log(`[${job.name}] PENDING: nothing to do (already done=${alreadyDone}, excluded=${excludedBad}).`);

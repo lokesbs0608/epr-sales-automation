@@ -1,0 +1,9 @@
+{
+  "inputExcel": "CFPL Jammu PWP PET Unregistered.xlsx",
+  "sheetName": "Unregistered",
+  "outputExcel": "CFPL Jammu PWP PET Unregistered.xlsx",
+  "worker": "run_upload.js",
+  "storageState": "storageState_registered.json",
+  "invoicePdfDir": "/home/lokesh-b-s/Downloads",
+  "max_rows": 0
+}

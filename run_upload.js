@@ -2,8 +2,26 @@ const ExcelJS = require("exceljs");
 const { chromium } = require("playwright");
 const path = require("path");
 const fs = require("fs");
+const SAN = require("./sanitize");
 
 const URL = "https://eprplastic.cpcb.gov.in/#/epr/details/sales";
+// Orchestrator passes --no-login so the worker trusts the shared session and
+// never blocks on an interactive login prompt (it has no stdin).
+const NO_LOGIN = process.argv.includes("--no-login");
+
+// Optional 2x2 window tiling via WIN_SLOT (set by orchestrator). Cosmetic only.
+function tileLaunchArgs() {
+    const slot = process.env.WIN_SLOT;
+    if (slot === undefined || slot === "") return { args: [], viewport: undefined };
+    const s = parseInt(slot, 10);
+    if (isNaN(s)) return { args: [], viewport: undefined };
+    const COLS = 2, CELL_W = 960, CELL_H = 540;
+    const x = (s % COLS) * CELL_W;
+    const y = Math.floor(s / COLS) * CELL_H;
+    return { args: [`--window-position=${x},${y}`, `--window-size=${CELL_W},${CELL_H}`], viewport: null };
+}
+const TILE = tileLaunchArgs();
+
 function getConfigPath() {
     const idx = process.argv.indexOf("--config");
     if (idx !== -1 && process.argv[idx + 1]) {
@@ -515,27 +533,58 @@ async function uploadInvoiceFileWithRetry(page, opts) {
         throw new Error(`Sheet not found: ${SHEET}`);
     }
 
+    // Ensure the upload-tracking column exists so resume can skip done rows.
+    const addedCols = SAN.ensureWritebackColumns(ws, normHeader, ["Invoice update Status"]);
+    if (addedCols.length) {
+        console.log(`Added missing column(s): ${addedCols.join(", ")}`);
+    }
+
     const headerMap = getHeaderMap(ws);
     const headerList = getHeaderList(ws);
 
-    const browser = await chromium.launch({ headless: false });
-    const context = await browser.newContext(
-        fs.existsSync(STORAGE) ? { storageState: STORAGE } : {}
-    );
+    const browser = await chromium.launch({ headless: false, args: TILE.args });
+    const context = await browser.newContext({
+        ...(fs.existsSync(STORAGE) ? { storageState: STORAGE } : {}),
+        ...(TILE.viewport !== undefined ? { viewport: TILE.viewport } : {}),
+    });
     const page = await context.newPage();
 
-    await page.goto(URL, { waitUntil: "domcontentloaded" });
+    // First navigation is retry-safe (portal can drop a connection under load).
+    let navOk = false;
+    for (let a = 1; a <= 5 && !navOk; a++) {
+        try {
+            await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 90000 });
+            navOk = true;
+        } catch (e) {
+            console.log(`initial nav attempt ${a} failed (${String(e?.message || e).split("\n")[0]}), retrying...`);
+            await page.waitForTimeout(3000 * a);
+        }
+    }
+    if (!navOk) throw new Error("Could not load the portal after 5 attempts.");
 
-    if (!fs.existsSync(STORAGE) || (await isLoginPage(page))) {
+    if (NO_LOGIN) {
+        // Shared session from orchestrator. Retry app load before giving up.
+        let ready = false;
+        for (let attempt = 1; attempt <= 5 && !ready; attempt++) {
+            try {
+                await page.waitForSelector("#ScrollableSimpleTableBody", { timeout: 30000 });
+                ready = true;
+            } catch {
+                console.log(`session check attempt ${attempt}: app not ready, reloading...`);
+                await page.waitForTimeout(3000 * attempt);
+                await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 90000 }).catch(() => { });
+            }
+        }
+        if (!ready) throw new Error("App never loaded — shared session likely expired. Re-login then retry.");
+    } else if (!fs.existsSync(STORAGE) || (await isLoginPage(page))) {
         await attemptLogout(page);
         console.log("Login manually in this Playwright window, then press ENTER here...");
         await new Promise((res) => process.stdin.once("data", () => res()));
         await context.storageState({ path: STORAGE });
         console.log("Saved session to storageState.json");
+        await page.goto(URL, { waitUntil: "domcontentloaded", timeout: 90000 });
+        await page.waitForSelector("#ScrollableSimpleTableBody", { timeout: 60000 });
     }
-
-    await page.goto(URL, { waitUntil: "domcontentloaded" });
-    await page.waitForSelector("#ScrollableSimpleTableBody", { timeout: 60000 });
 
     const lastRow = CONFIG.maxRows ? Math.min(ws.rowCount, CONFIG.maxRows) : ws.rowCount;
     const pdfRoot = CONFIG.invoicePdfDir
@@ -551,15 +600,18 @@ async function uploadInvoiceFileWithRetry(page, opts) {
 
         const eprInvoice = cellText(getVal(row, headerMap, "EPR Invoice Number"));
         const eInvoice = cellText(getVal(row, headerMap, "E-Invoice Number*"));
-        const uploadStatusRaw = cellText(getVal(row, headerMap, "Status"));
+        // Upload tracking lives in its OWN column ("Invoice update Status"), NOT
+        // the data-entry "Status" column (which is "Filled" for every row). Only
+        // skip when THIS row's upload already succeeded.
+        const uploadStatusRaw = cellText(getVal(row, headerMap, "Invoice update Status"));
         const uploadStatus = normalizeStatus(uploadStatusRaw);
 
         if (!eprInvoice) {
             console.log(`Row ${r}: Skipped (missing EPR Invoice Number)`);
             continue;
         }
-        if (uploadStatusRaw.trim() !== "" || uploadStatus.includes("Success") || uploadStatus.includes("success")) {
-            console.log(`Row ${r}: Invoice update Status already filled, skipping upload`);
+        if (uploadStatus.includes("success") || uploadStatus.includes("sucess")) {
+            console.log(`Row ${r}: upload already succeeded, skipping`);
             continue;
         }
 

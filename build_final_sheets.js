@@ -153,10 +153,32 @@ async function buildEprMap(prefix){
       outWs.getRow(dst++).values = rowVals;
     }
 
+    // ---- Post-pass: flag DUPLICATE EPRs (same EPR on 2+ rows). These are
+    // portal-side collisions from parallel submit; the EPR is real but is shared
+    // by two different sales and must be corrected manually on the portal. ----
+    let dupFlagged=0;
+    {
+      const byEpr=new Map();
+      for(let rr=2; rr<=outWs.rowCount; rr++){
+        const e=ct(outWs.getRow(rr).getCell(eprOut).value);
+        if(VALID_EPR.test(e)){ if(!byEpr.has(e))byEpr.set(e,[]); byEpr.get(e).push(rr); }
+      }
+      for(const [e,rows] of byEpr){
+        if(rows.length>1){
+          for(const rr of rows){
+            outWs.getRow(rr).getCell(statusOut).value =
+              `DUPLICATE EPR ON PORTAL - ${e} shared by ${rows.length} sales (rows ${rows.map(x=>x-1).join(",")}). Needs manual correction on portal.`;
+            dupFlagged++;
+            if(filled>0) filled--; // these are no longer counted as clean "Filled"
+          }
+        }
+      }
+    }
+
     const tmp=job.out+".tmp";
     await outWb.xlsx.writeFile(tmp);
     fs.renameSync(tmp, job.out);
-    summary.push({job:job.name,out:job.out,total,filled,garbage,pending,blankInv,eprCol:eprOut,statusCol:statusOut});
+    summary.push({job:job.name,out:job.out,total,filled,garbage,pending,blankInv,dupFlagged,eprCol:eprOut,statusCol:statusOut});
   }
 
   console.log("\n================ FINAL REPORT SHEETS ================");
@@ -164,7 +186,8 @@ async function buildEprMap(prefix){
     console.log(`\n${s.job}  ->  ${s.out}`);
     console.log(`  EPR Number is in COLUMN ${s.eprCol}, Status in COLUMN ${s.statusCol} (right after the data)`);
     console.log(`  total rows : ${s.total}`);
-    console.log(`  Filled  : ${s.filled}`);
+    console.log(`  Filled (clean, unique EPR) : ${s.filled}`);
+    console.log(`  DUPLICATE EPR on portal : ${s.dupFlagged}  (needs manual fix)`);
     console.log(`  Failed/Review : ${s.garbage}`);
     console.log(`  Pending : ${s.pending}`);
   }

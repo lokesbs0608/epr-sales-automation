@@ -68,3 +68,20 @@ PIBO Invoice Upload (upload PDF for each EPR entry):
 ```
 node pibo_upload.js --config config_pibo_upload.json
 ```
+
+Delete EPR Sales Entries:
+```
+node run_delete.js --config config_delete.json
+```
+Reads the same Excel format as the upload, searches each row by `EPR Invoice Number`,
+clicks the delete (trash) icon in the table's Action column, confirms in the
+"Confirm Deletion" modal, and writes `Deleted` to the status column.
+
+- Writes the outcome to a `Delete Status` column if present, otherwise falls back to `Status`.
+- Rows already marked deleted are skipped.
+- Add `--dry-run` (or `"dryRun": true` in the config) to search rows and open the
+  confirmation modal without actually deleting anything — useful for verifying selectors:
+  ```
+  node run_delete.js --config config_delete.json --dry-run
+  ```
+- Delete activity is logged to `<output>_delete_log.csv`.

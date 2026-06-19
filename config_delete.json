@@ -1,0 +1,7 @@
+{
+  "inputExcel": "Toppan PWP Sale For Automation.xlsx",
+  "sheetName": "Active Batch",
+  "outputExcel": "Toppan PWP Sale For Automation_delete_output.xlsx",
+  "max_rows": 0,
+  "storageState": "storageState_delete.json"
+}

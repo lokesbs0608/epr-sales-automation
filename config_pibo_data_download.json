@@ -1,0 +1,44 @@
+{
+  "storageState": "storageState_pibo.json",
+  "max_pages": 0,
+  "procurement": {
+    "label": "Material Procurement Details",
+    "portalUrl": "https://eprplastic.cpcb.gov.in/#/epr/pibo-operations/material",
+    "dateHint": "2021-04-01 to 2026-03-31 (5+ years allowed in one go)",
+    "outputExcel": "PIBO_Procurement_2021-2026.xlsx",
+    "checkpointFile": "checkpoint_pibo_procurement.json"
+  },
+  "salesPortalUrl": "https://eprplastic.cpcb.gov.in/#/epr/pibo-operations/sales",
+  "salesYears": [
+    {
+      "label": "Sales FY 2021-22",
+      "dateHint": "2021-04-01 to 2022-03-31",
+      "outputExcel": "PIBO_Sales_FY2021-22.xlsx",
+      "checkpointFile": "checkpoint_pibo_sales_2021_22.json"
+    },
+    {
+      "label": "Sales FY 2022-23",
+      "dateHint": "2022-04-01 to 2023-03-31",
+      "outputExcel": "PIBO_Sales_FY2022-23.xlsx",
+      "checkpointFile": "checkpoint_pibo_sales_2022_23.json"
+    },
+    {
+      "label": "Sales FY 2023-24",
+      "dateHint": "2023-04-01 to 2024-03-31",
+      "outputExcel": "PIBO_Sales_FY2023-24.xlsx",
+      "checkpointFile": "checkpoint_pibo_sales_2023_24.json"
+    },
+    {
+      "label": "Sales FY 2024-25",
+      "dateHint": "2024-04-01 to 2025-03-31",
+      "outputExcel": "PIBO_Sales_FY2024-25.xlsx",
+      "checkpointFile": "checkpoint_pibo_sales_2024_25.json"
+    },
+    {
+      "label": "Sales FY 2025-26",
+      "dateHint": "2025-04-01 to 2026-03-31",
+      "outputExcel": "PIBO_Sales_FY2025-26.xlsx",
+      "checkpointFile": "checkpoint_pibo_sales_2025_26.json"
+    }
+  ]
+}

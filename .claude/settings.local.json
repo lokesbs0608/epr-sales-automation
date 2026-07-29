@@ -30,7 +30,16 @@
       "Bash(GIT_SSH_COMMAND=\"ssh -o BatchMode=yes\" git ls-remote git@github.com:lokeshbs0608/EPR-automation.git HEAD)",
       "Bash(git remote *)",
       "Bash(node *)",
-      "Bash(git push *)"
+      "Bash(git push *)",
+      "Bash(awk '{print $5, $9}')",
+      "Bash(node run_delete.js --config config_delete_dryrun.json)",
+      "Bash(echo \"started pid $!\")",
+      "Read(//tmp/**)",
+      "Bash(break)",
+      "Bash(npx playwright *)",
+      "Bash(:)",
+      "Read(//home/lokesh-b-s/.cache/ms-playwright/**)",
+      "Read(//home/lokesh-b-s/.cache/ms-playwright/chromium-1200/chrome-linux64/**)"
     ]
   }
 }

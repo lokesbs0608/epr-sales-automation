@@ -1,0 +1,14 @@
+{
+  "portalUrl": "https://eprplastic.cpcb.gov.in/#/epr/details/sales",
+  "fromDate": "2025-04-01",
+  "toDate": "2026-03-31",
+  "outputExcel": "nahar line 1_Complete_Data_april2024-march2025.xlsx",
+  "checkpointFile": "checkpoint_data_download_2.json",
+  "storageState": "storageState_upload.json",
+  "max_pages": 0,
+  "response_timeout_ms": 30000,
+  "fromDateSelector": "input[name=\"fromDate\"]",
+  "toDateSelector": "input[name=\"toDate\"]",
+  "searchButtonSelector": "button:has-text(\"Search\")",
+  "nextPageButtonSelector": "button:has-text(\"Next\")"
+}
